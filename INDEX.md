@@ -278,6 +278,17 @@ Agent slash-command skills. Each skill is a directory containing a `SKILL.md` th
 | `zoom-out` | `skills/zoom-out` | I don't know this area of code well. Go up a layer of abstraction. Give me a map of all th |
 To add a skill: copy `skills/_template/` to `skills/<name>/`, fill in `SKILL.md`, run `./install.sh`.
 
+## Commands
+
+Agent slash commands invoked with `/command-name` in Claude Code. `install.sh` symlinks each into `~/.claude/commands/`.
+
+| Command | Path | Description |
+|---------|------|-------------|
+| `/orchestrate` | `commands/orchestrate.md` | Decompose a task into parallel sub-agent waves with phased synthesis |
+| `/generate-tests` | `commands/generate-tests.md` | Generate a complete test file for a given source file or component |
+| `/notifications` | `commands/notifications.md` | Toggle Claude Code desktop notifications on/off |
+| `/checkup` | `commands/checkup.md` | Validate Claude Code installation, config, auth, and proxy connectivity |
+
 ## MCP Servers
 
 Shared MCP server definitions. Active entries (not prefixed with `_`) in `mcp/servers.json` are registered into `~/.claude/settings.json` by `install.sh`.

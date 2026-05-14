@@ -323,6 +323,44 @@ PYEOF
   done
 }
 
+# ── Commands ─────────────────────────────────────────────────────────────────
+
+install_commands() {
+  local commands_src="$REPO_DIR/commands"
+  [[ -d "$commands_src" ]] || return
+
+  local any=0
+  for f in "$commands_src"/*.md; do [[ -f "$f" ]] && any=1 && break; done
+  [[ $any -eq 0 ]] && return
+
+  info "Installing slash commands → $CLAUDE_DIR/commands"
+  [[ $DRY_RUN -eq 0 ]] && mkdir -p "$CLAUDE_DIR/commands"
+
+  for cmd in "$commands_src"/*.md; do
+    [[ -f "$cmd" ]] || continue
+    local name; name="$(basename "$cmd")"
+    local target="$CLAUDE_DIR/commands/$name"
+
+    if [[ $DRY_RUN -eq 1 ]]; then
+      echo "[dry]   would link command: $name"
+      continue
+    fi
+
+    if [[ -L "$target" ]]; then
+      local current; current="$(readlink "$target")"
+      if [[ "$current" != "$cmd" ]]; then
+        ln -sfn "$cmd" "$target"
+        info "Updated command symlink: $name"
+      fi
+    elif [[ -f "$target" ]]; then
+      warn "Skipping command '$name': a real file already exists at $target"
+    else
+      ln -s "$cmd" "$target"
+      success "Linked command: $name"
+    fi
+  done
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 main() {
@@ -337,6 +375,7 @@ main() {
   echo ""
 
   install_skills
+  install_commands
   install_mcp
   install_claude_config
   install_cursor_config
