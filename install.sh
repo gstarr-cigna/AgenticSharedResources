@@ -36,6 +36,34 @@ require() {
   command -v "$1" &>/dev/null || { err "Required tool not found: $1"; exit 1; }
 }
 
+# Returns 0 if $skill_dir/SKILL.md targets $client (or has no clients field).
+skill_targets_client() {
+  local skill_dir="$1" client="$2"
+  local skill_md="$skill_dir/SKILL.md"
+  [[ -f "$skill_md" ]] || return 0  # no SKILL.md → install everywhere
+
+  python3 - "$skill_md" "$client" <<'EOF'
+import sys, re
+
+path, client = sys.argv[1], sys.argv[2]
+with open(path) as f:
+    content = f.read()
+
+# Extract YAML frontmatter between --- delimiters
+match = re.match(r'^---\s*\n(.*?)\n---', content, re.DOTALL)
+if not match:
+    sys.exit(0)  # no frontmatter → install everywhere
+
+fm = match.group(1)
+clients_match = re.search(r'^clients:\s*\[([^\]]*)\]', fm, re.MULTILINE)
+if not clients_match:
+    sys.exit(0)  # no clients field → install everywhere
+
+clients = [c.strip() for c in clients_match.group(1).split(',')]
+sys.exit(0 if client in clients else 1)
+EOF
+}
+
 backup_file() {
   local file="$1"
   [[ -f "$file" ]] || return 0
@@ -93,6 +121,11 @@ install_skills() {
     [[ -d "$skill_dir" ]] || continue
     local skill_name; skill_name="$(basename "$skill_dir")"
     [[ "$skill_name" == _template ]] && continue
+
+    if ! skill_targets_client "$skill_dir" "claude"; then
+      info "Skipping skill '$skill_name': not targeting claude"
+      continue
+    fi
 
     local target_link="$SKILLS_TARGET/$skill_name"
 

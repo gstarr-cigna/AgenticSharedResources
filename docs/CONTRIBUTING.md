@@ -25,6 +25,18 @@ Keep prompts focused and versioned via git — don't edit in place without a cle
 
 Config files in `config/` are merged (not replaced) by `install.sh`. Only add keys that should apply to all team members. Machine-specific overrides belong in `~/.zshrc.local` or local settings files.
 
+## Adding a New Client
+
+When the team adopts a new agent client (Cursor, OpenCode, etc.) and wants skills to install there:
+
+1. Add the client name to the valid values comment in `skills/_template/SKILL.md`
+2. Add an `install_skills_<client>()` function in `install.sh` that reads `SKILL.md` frontmatter via `skill_targets_client` and installs to the client's expected path
+3. Call the new function from `main()` in `install.sh`
+4. Update `config/` with a `<client>/settings.json` if the client has mergeable config
+5. Document the client's skills path in `docs/onboarding.md`
+
+Existing skills with `clients: [claude]` will be ignored by the new installer unless contributors opt in by adding the new client name to their frontmatter. Skills with no `clients` field install everywhere by default.
+
 ## PR Standards
 
 - One logical change per PR

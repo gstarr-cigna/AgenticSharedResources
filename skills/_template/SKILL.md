@@ -1,3 +1,11 @@
+---
+clients: [claude]
+# clients controls which agent clients install.sh installs this skill for.
+# Omit this field to install for all clients.
+# Current valid values: claude
+# To add support for a new client, see docs/CONTRIBUTING.md § Adding a New Client
+---
+
 # Skill: <name>
 
 <!-- Replace everything in angle brackets. Delete this comment when done. -->
