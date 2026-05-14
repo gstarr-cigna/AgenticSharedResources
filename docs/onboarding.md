@@ -9,8 +9,8 @@
 ## Install
 
 ```bash
-git clone <repo-url> ~/projects/team-agents
-cd ~/projects/team-agents
+git clone <repo-url> ~/projects/AgenticSharedResources
+cd ~/projects/AgenticSharedResources
 ./install.sh
 ```
 

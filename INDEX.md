@@ -1,4 +1,4 @@
-# team-agents INDEX
+# AgenticSharedResources INDEX
 
 This file is the machine-readable entry point for agents and LLMs. Read this first to understand what is available and where to find it. All paths are relative to the repo root.
 

@@ -329,7 +329,7 @@ main() {
   require python3
 
   [[ $DRY_RUN -eq 1 ]] && echo "=== DRY RUN — no files will be written ==="
-  echo "=== team-agents install ==="
+  echo "=== AgenticSharedResources install ==="
   echo "Repo:   $REPO_DIR"
   echo "Skills: $SKILLS_TARGET"
   echo "Claude: $CLAUDE_DIR"

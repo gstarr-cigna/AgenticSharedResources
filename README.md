@@ -1,4 +1,4 @@
-# team-agents
+# AgenticSharedResources
 
 Shared agentic resources for the team — skills, MCP server configs, prompts, hooks, and agent settings.
 
@@ -16,8 +16,8 @@ Shared agentic resources for the team — skills, MCP server configs, prompts, h
 ## Quickstart
 
 ```bash
-git clone <this-repo> ~/projects/team-agents
-cd ~/projects/team-agents
+git clone <this-repo> ~/projects/AgenticSharedResources
+cd ~/projects/AgenticSharedResources
 ./install.sh
 ```
 

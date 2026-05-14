@@ -18,7 +18,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "=== team-agents update ==="
+echo "=== AgenticSharedResources update ==="
 
 # Verify we're on a real branch, not a detached HEAD.
 current_branch="$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "UNKNOWN")"
