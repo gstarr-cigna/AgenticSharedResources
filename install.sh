@@ -361,6 +361,91 @@ install_commands() {
   done
 }
 
+# ── Git Hooks ────────────────────────────────────────────────────────────────
+
+install_git_hooks() {
+  local git_hooks_src="$REPO_DIR/hooks/git"
+  [[ -d "$git_hooks_src" ]] || return
+
+  local git_dir
+  git_dir="$(git -C "$REPO_DIR" rev-parse --git-dir 2>/dev/null || true)"
+  [[ -z "$git_dir" ]] && { info "Not a git repo — skipping git hook install."; return; }
+  [[ "$git_dir" != /* ]] && git_dir="$REPO_DIR/$git_dir"
+
+  local hooks_dst="$git_dir/hooks"
+
+  info "Installing git hooks → $hooks_dst"
+  [[ $DRY_RUN -eq 0 ]] && mkdir -p "$hooks_dst"
+
+  for hook in "$git_hooks_src"/*; do
+    [[ -f "$hook" ]] || continue
+    local name; name="$(basename "$hook")"
+    local target="$hooks_dst/$name"
+
+    if [[ $DRY_RUN -eq 1 ]]; then
+      echo "[dry]   would install git hook: $name"
+      continue
+    fi
+
+    cp "$hook" "$target"
+    chmod +x "$target"
+    success "Installed git hook: $name"
+  done
+}
+
+# ── INDEX.md ──────────────────────────────────────────────────────────────────
+
+regenerate_index() {
+  [[ $DRY_RUN -eq 1 ]] && { echo "[dry]   would regenerate INDEX.md"; return; }
+
+  python3 - "$REPO_DIR" <<'EOF'
+import os, re, sys
+
+repo = sys.argv[1]
+skills_dir = os.path.join(repo, "skills")
+rows = []
+
+for root, dirs, files in os.walk(skills_dir):
+    dirs.sort()
+    if "SKILL.md" not in files:
+        continue
+    rel = os.path.relpath(root, skills_dir)
+    if rel == "_template":
+        continue
+    description = ""
+    with open(os.path.join(root, "SKILL.md")) as f:
+        content = f.read()
+    body = re.sub(r'^---.*?---\s*', '', content, flags=re.DOTALL)
+    for line in body.splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or line.startswith('<!--') or line.startswith('**'):
+            continue
+        description = line[:90]
+        break
+    rows.append((rel, f"skills/{rel}", description))
+
+table = ["| Skill | Path | Description |", "|-------|------|-------------|"]
+for name, path, desc in rows:
+    table.append(f"| `{name}` | `{path}` | {desc.replace('|', chr(92)+'|')} |")
+
+index_path = os.path.join(repo, "INDEX.md")
+with open(index_path) as f:
+    index = f.read()
+
+updated = re.sub(
+    r'(\| Skill \| Path \| Description \|.*?)(\nTo add a skill:)',
+    "\n".join(table) + r'\2',
+    index,
+    flags=re.DOTALL
+)
+
+with open(index_path, "w") as f:
+    f.write(updated)
+
+print(f"[ok]    INDEX.md regenerated ({len(rows)} skills)")
+EOF
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 main() {
@@ -380,6 +465,8 @@ main() {
   install_claude_config
   install_cursor_config
   install_hooks
+  install_git_hooks
+  regenerate_index
 
   echo ""
   echo "=== Done ==="

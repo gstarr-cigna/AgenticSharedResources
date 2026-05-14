@@ -1,5 +1,19 @@
 # Hooks
 
+This directory contains two kinds of hooks.
+
+## Git Hooks (`hooks/git/`)
+
+Installed into `.git/hooks/` by `install.sh`. Keep the repo consistent on every commit.
+
+| Hook | What it does |
+|------|-------------|
+| `pre-commit` | Runs `package.sh` — injects missing frontmatter, regenerates INDEX.md, stages results |
+
+Add new git hooks here; `install.sh` installs everything in `hooks/git/` automatically.
+
+## Claude Code Lifecycle Hooks (`hooks/*.sh`)
+
 Shell scripts placed here are copied to `~/.claude/hooks/` by `install.sh`, made executable, and **automatically registered** in `~/.claude/settings.json` under the correct lifecycle key.
 
 ## Naming Convention

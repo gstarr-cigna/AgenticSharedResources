@@ -2,10 +2,15 @@
 
 ## Adding a Skill
 
-1. Copy `skills/_template/` to `skills/<your-skill-name>/`
+The fastest path — just drop files in and let the tooling handle the rest:
+
+1. Copy any skill directory into `skills/<name>/` (or start from `skills/_template/`)
 2. Fill in `SKILL.md` — be specific about trigger conditions and steps
-3. Test it locally: run `./install.sh` and invoke the skill in your agent
-4. Open a PR with a short description of what the skill does and when you'd reach for it
+3. Run `./install.sh` to test it locally
+4. Commit — the pre-commit hook runs `package.sh` automatically, injecting any missing frontmatter and regenerating `INDEX.md`
+5. Open a PR
+
+You can also run `./package.sh` manually at any point to validate structure, fix frontmatter, and stage changes before committing.
 
 ## Adding an MCP Server
 

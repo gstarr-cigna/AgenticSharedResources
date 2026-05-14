@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Git pre-commit hook — runs package.sh to keep the repo consistent.
+# Installed into .git/hooks/pre-commit by install.sh.
+#
+# Automatically injects missing frontmatter, validates structure,
+# regenerates INDEX.md, and stages any resulting changes before the commit lands.
+
+set -euo pipefail
+
+REPO_DIR="$(git rev-parse --show-toplevel)"
+"$REPO_DIR/package.sh"
