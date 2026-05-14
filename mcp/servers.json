@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "_example_sse": {
+      "_comment": "Remove the leading underscore to activate. SSE/HTTP server example.",
+      "type": "sse",
+      "url": "https://mcp.example.internal/sse",
+      "env": {
+        "API_KEY": "${TEAM_MCP_API_KEY}"
+      }
+    },
+    "_example_stdio": {
+      "_comment": "Remove the leading underscore to activate. stdio server example.",
+      "command": "npx",
+      "args": ["-y", "@example/mcp-server"]
+    }
+  }
+}
