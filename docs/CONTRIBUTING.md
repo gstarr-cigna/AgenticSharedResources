@@ -2,11 +2,18 @@
 
 ## Adding a Skill
 
+Skills live in one of two tiers:
+
+- **`skills/core/`** — always installed by `./install.sh`. Reserve for high-frequency, daily-use skills (target: ≤30). These load into every team member's agent automatically.
+- **`skills/extended/`** — on-demand. Team members install individually with `./install.sh --skill <name>` or all at once with `./install.sh --extended`.
+
+**New skills go to `skills/extended/` by default.** To propose a skill for promotion to core, open a PR and explain why it belongs in every session (e.g., "used in >50% of coding tasks", "blocks common workflows without it"). Core is intentionally small.
+
 The fastest path — just drop files in and let the tooling handle the rest:
 
-1. Copy any skill directory into `skills/<name>/` (or start from `skills/_template/`)
+1. Copy any skill directory into `skills/extended/<name>/` (or start from `skills/_template/`)
 2. Fill in `SKILL.md` — be specific about trigger conditions and steps
-3. Run `./install.sh` to test it locally
+3. Run `./install.sh --skill <name>` to test it locally
 4. Commit — the pre-commit hook runs `package.sh` automatically, injecting any missing frontmatter and regenerating `INDEX.md`
 5. Open a PR
 

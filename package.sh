@@ -57,18 +57,17 @@ validate_structure() {
   info "Validating structure..."
   local issues=0
 
-  for dir in skills/*/; do
-    [[ -d "$dir" ]] || continue
-    local name; name="$(basename "$dir")"
-    [[ "$name" == "_template" ]] && continue
-
-    # Check if any SKILL.md exists anywhere in this subtree
-    local found
-    found=$(find "$dir" -name "SKILL.md" | head -1)
-    if [[ -z "$found" ]]; then
-      warn "No SKILL.md found in: $dir (directory will be ignored by install.sh)"
-      issues=$((issues + 1))
-    fi
+  for base in "skills/core" "skills/extended"; do
+    [[ -d "$base" ]] || continue
+    for dir in "$base"/*/; do
+      [[ -d "$dir" ]] || continue
+      local found
+      found=$(find "$dir" -name "SKILL.md" | head -1)
+      if [[ -z "$found" ]]; then
+        warn "No SKILL.md found in: $dir (directory will be ignored by install.sh)"
+        issues=$((issues + 1))
+      fi
+    done
   done
 
   [[ $issues -eq 0 ]] && info "Structure valid"
@@ -83,37 +82,54 @@ regenerate_index() {
 import os, re
 
 skills_dir = "skills"
-rows = []
+core_rows = []
+ext_rows = []
 
-for root, dirs, files in os.walk(skills_dir):
-    dirs.sort()
-    if "SKILL.md" not in files:
+for tier, subdir in [("core", "skills/core"), ("extended", "skills/extended")]:
+    if not os.path.isdir(subdir):
         continue
-    rel = os.path.relpath(root, skills_dir)
-    if rel == "_template":
-        continue
-    description = ""
-    with open(os.path.join(root, "SKILL.md")) as f:
-        content = f.read()
-    body = re.sub(r'^---.*?---\s*', '', content, flags=re.DOTALL)
-    for line in body.splitlines():
-        line = line.strip()
-        if not line or line.startswith('#') or line.startswith('<!--') or line.startswith('**'):
+    for root, dirs, files in os.walk(subdir):
+        dirs.sort()
+        if "SKILL.md" not in files:
             continue
-        description = line[:90]
-        break
-    rows.append((rel, f"skills/{rel}", description))
+        rel = os.path.relpath(root, skills_dir)
+        description = ""
+        with open(os.path.join(root, "SKILL.md")) as f:
+            content = f.read()
+        body = re.sub(r'^---.*?---\s*', '', content, flags=re.DOTALL)
+        for line in body.splitlines():
+            line = line.strip()
+            if not line or line.startswith('#') or line.startswith('<!--') or line.startswith('**'):
+                continue
+            description = line[:90]
+            break
+        row = (rel, f"skills/{rel}", description)
+        if tier == "core":
+            core_rows.append(row)
+        else:
+            ext_rows.append(row)
 
-table = ["| Skill | Path | Description |", "|-------|------|-------------|"]
-for name, path, desc in rows:
-    table.append(f"| `{name}` | `{path}` | {desc.replace('|', chr(92)+'|')} |")
+def make_table(rows):
+    lines = ["| Skill | Path | Description |", "|-------|------|-------------|"]
+    for name, path, desc in rows:
+        lines.append(f"| `{name}` | `{path}` | {desc.replace('|', chr(92)+'|')} |")
+    return "\n".join(lines)
+
+new_section = (
+    "### Core Skills\n\n"
+    "Always installed. High-frequency skills for daily use.\n\n"
+    + make_table(core_rows) + "\n\n"
+    + "### Extended Skills\n\n"
+    "On-demand. Install with `./install.sh --skill <name>` or all with `./install.sh --extended`.\n\n"
+    + make_table(ext_rows) + "\n"
+)
 
 with open("INDEX.md") as f:
     index = f.read()
 
 updated = re.sub(
-    r'(\| Skill \| Path \| Description \|.*?)(\nTo add a skill:)',
-    "\n".join(table) + r'\2',
+    r'(?:### Core Skills|\| Skill \| Path \| Description \|).*?(?=\nTo add a skill:)',
+    new_section,
     index,
     flags=re.DOTALL
 )
@@ -121,7 +137,7 @@ updated = re.sub(
 with open("INDEX.md", "w") as f:
     f.write(updated)
 
-print(f"[ok]    INDEX.md regenerated ({len(rows)} skills)")
+print(f"[ok]    INDEX.md regenerated ({len(core_rows)} core, {len(ext_rows)} extended skills)")
 EOF
 }
 

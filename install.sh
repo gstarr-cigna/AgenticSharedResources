@@ -3,9 +3,11 @@
 # Safe to re-run; all operations are idempotent.
 #
 # Usage:
-#   ./install.sh              # normal install
-#   ./install.sh --dry-run    # print what would happen, write nothing
-#   ./install.sh --force      # overwrite existing MCP server entries
+#   ./install.sh                      # install core skills + everything else
+#   ./install.sh --dry-run            # print what would happen, write nothing
+#   ./install.sh --force              # overwrite existing MCP server entries
+#   ./install.sh --extended           # also install all extended skills
+#   ./install.sh --skill <name>       # install one extended skill by name
 
 set -euo pipefail
 
@@ -16,11 +18,15 @@ CURSOR_DIR="${CURSOR_DIR:-$HOME/.cursor}"
 
 DRY_RUN=0
 FORCE=0
+EXTENDED=0
+INSTALL_SKILL=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -n|--dry-run) DRY_RUN=1; shift ;;
-    -f|--force)   FORCE=1;   shift ;;
+    -n|--dry-run)  DRY_RUN=1;          shift ;;
+    -f|--force)    FORCE=1;            shift ;;
+    -e|--extended) EXTENDED=1;         shift ;;
+    --skill)       INSTALL_SKILL="$2"; shift 2 ;;
     *) echo "[error] Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -112,46 +118,72 @@ ensure_json_file() {
 
 # ── Skills ───────────────────────────────────────────────────────────────────
 
+# Link a single skill directory into SKILLS_TARGET.
+link_skill() {
+  local skill_dir="$1"
+  local skill_name; skill_name="$(basename "$skill_dir")"
+  local target_link="$SKILLS_TARGET/$skill_name"
+
+  if ! skill_targets_client "$skill_dir" "claude"; then
+    info "Skipping '$skill_name': not targeting claude"
+    return
+  fi
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "[dry]   would link skill: $skill_name"
+    return
+  fi
+
+  if [[ -L "$target_link" ]]; then
+    local current; current="$(readlink "$target_link")"
+    if [[ "$current" != "$skill_dir" ]]; then
+      ln -sfn "$skill_dir" "$target_link"
+      info "Updated skill symlink: $skill_name"
+    fi
+  elif [[ -d "$target_link" ]]; then
+    warn "Skipping '$skill_name': a real directory already exists at $target_link"
+  else
+    ln -s "$skill_dir" "$target_link"
+    success "Linked skill: $skill_name"
+  fi
+}
+
 install_skills() {
-  info "Installing skills → $SKILLS_TARGET"
+  # --skill <name>: install one extended skill on demand
+  if [[ -n "$INSTALL_SKILL" ]]; then
+    local skill_dir="$REPO_DIR/skills/extended/$INSTALL_SKILL"
+    if [[ ! -d "$skill_dir" ]]; then
+      err "Extended skill not found: $INSTALL_SKILL"
+      err "Run: find skills/extended -maxdepth 2 -name 'SKILL.md' to browse available skills"
+      exit 1
+    fi
+    [[ $DRY_RUN -eq 0 ]] && mkdir -p "$SKILLS_TARGET"
+    link_skill "$skill_dir"
+    return
+  fi
+
+  info "Installing core skills → $SKILLS_TARGET"
   [[ $DRY_RUN -eq 0 ]] && mkdir -p "$SKILLS_TARGET"
 
   local linked=0
-  for skill_dir in "$REPO_DIR/skills"/*/; do
+  for skill_dir in "$REPO_DIR/skills/core"/*/; do
     [[ -d "$skill_dir" ]] || continue
-    local skill_name; skill_name="$(basename "$skill_dir")"
-    [[ "$skill_name" == _template ]] && continue
-
-    if ! skill_targets_client "$skill_dir" "claude"; then
-      info "Skipping skill '$skill_name': not targeting claude"
-      continue
-    fi
-
-    local target_link="$SKILLS_TARGET/$skill_name"
-
-    if [[ $DRY_RUN -eq 1 ]]; then
-      echo "[dry]   would link skill: $skill_name"
-      linked=$((linked + 1))
-      continue
-    fi
-
-    if [[ -L "$target_link" ]]; then
-      local current; current="$(readlink "$target_link")"
-      if [[ "$current" != "$skill_dir" ]]; then
-        ln -sfn "$skill_dir" "$target_link"
-        info "Updated skill symlink: $skill_name"
-        linked=$((linked + 1))
-      fi
-    elif [[ -d "$target_link" ]]; then
-      warn "Skipping skill '$skill_name': a real directory already exists at $target_link"
-    else
-      ln -s "$skill_dir" "$target_link"
-      success "Linked skill: $skill_name"
-      linked=$((linked + 1))
-    fi
+    link_skill "$skill_dir"
+    linked=$((linked + 1))
   done
+  [[ $linked -eq 0 ]] && info "No core skills found"
 
-  [[ $linked -eq 0 ]] && info "No skills to install (add directories under skills/)"
+  if [[ $EXTENDED -eq 1 ]]; then
+    info "Installing extended skills → $SKILLS_TARGET"
+    for skill_dir in "$REPO_DIR/skills/extended"/*/; do
+      [[ -d "$skill_dir" ]] || continue
+      link_skill "$skill_dir"
+    done
+  else
+    local ext_count; ext_count=$(find "$REPO_DIR/skills/extended" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
+    info "$ext_count extended skills available — use --extended to install all, or --skill <name> for one"
+  fi
+
 }
 
 # ── MCP Servers ───────────────────────────────────────────────────────────────
@@ -403,38 +435,55 @@ import os, re, sys
 
 repo = sys.argv[1]
 skills_dir = os.path.join(repo, "skills")
-rows = []
+core_rows = []
+ext_rows = []
 
-for root, dirs, files in os.walk(skills_dir):
-    dirs.sort()
-    if "SKILL.md" not in files:
+for tier, subdir in [("core", os.path.join(skills_dir, "core")), ("extended", os.path.join(skills_dir, "extended"))]:
+    if not os.path.isdir(subdir):
         continue
-    rel = os.path.relpath(root, skills_dir)
-    if rel == "_template":
-        continue
-    description = ""
-    with open(os.path.join(root, "SKILL.md")) as f:
-        content = f.read()
-    body = re.sub(r'^---.*?---\s*', '', content, flags=re.DOTALL)
-    for line in body.splitlines():
-        line = line.strip()
-        if not line or line.startswith('#') or line.startswith('<!--') or line.startswith('**'):
+    for root, dirs, files in os.walk(subdir):
+        dirs.sort()
+        if "SKILL.md" not in files:
             continue
-        description = line[:90]
-        break
-    rows.append((rel, f"skills/{rel}", description))
+        rel = os.path.relpath(root, skills_dir)
+        description = ""
+        with open(os.path.join(root, "SKILL.md")) as f:
+            content = f.read()
+        body = re.sub(r'^---.*?---\s*', '', content, flags=re.DOTALL)
+        for line in body.splitlines():
+            line = line.strip()
+            if not line or line.startswith('#') or line.startswith('<!--') or line.startswith('**'):
+                continue
+            description = line[:90]
+            break
+        row = (rel, f"skills/{rel}", description)
+        if tier == "core":
+            core_rows.append(row)
+        else:
+            ext_rows.append(row)
 
-table = ["| Skill | Path | Description |", "|-------|------|-------------|"]
-for name, path, desc in rows:
-    table.append(f"| `{name}` | `{path}` | {desc.replace('|', chr(92)+'|')} |")
+def make_table(rows):
+    lines = ["| Skill | Path | Description |", "|-------|------|-------------|"]
+    for name, path, desc in rows:
+        lines.append(f"| `{name}` | `{path}` | {desc.replace('|', chr(92)+'|')} |")
+    return "\n".join(lines)
+
+new_section = (
+    "### Core Skills\n\n"
+    "Always installed. High-frequency skills for daily use.\n\n"
+    + make_table(core_rows) + "\n\n"
+    + "### Extended Skills\n\n"
+    "On-demand. Install with `./install.sh --skill <name>` or all with `./install.sh --extended`.\n\n"
+    + make_table(ext_rows) + "\n"
+)
 
 index_path = os.path.join(repo, "INDEX.md")
 with open(index_path) as f:
     index = f.read()
 
 updated = re.sub(
-    r'(\| Skill \| Path \| Description \|.*?)(\nTo add a skill:)',
-    "\n".join(table) + r'\2',
+    r'(?:### Core Skills|\| Skill \| Path \| Description \|).*?(?=\nTo add a skill:)',
+    new_section,
     index,
     flags=re.DOTALL
 )
@@ -442,7 +491,7 @@ updated = re.sub(
 with open(index_path, "w") as f:
     f.write(updated)
 
-print(f"[ok]    INDEX.md regenerated ({len(rows)} skills)")
+print(f"[ok]    INDEX.md regenerated ({len(core_rows)} core, {len(ext_rows)} extended skills)")
 EOF
 }
 
