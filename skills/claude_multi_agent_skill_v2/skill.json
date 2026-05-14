@@ -1,0 +1,5 @@
+{
+  "name": "multi-agent-orchestrator",
+  "description": "Claude-compatible multi-agent system with planner, executor, evaluator, and tool plugins",
+  "entry": "index.js"
+}
